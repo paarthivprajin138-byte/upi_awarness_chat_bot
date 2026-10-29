@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UPI Safety Coach</title>
+  <style>
+    :root {
+      --green: #087f5b;
+      --dark: #12352b;
+      --light: #eaf7f0;
+      --border: #d6e5dd;
+      --danger: #b42318;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: linear-gradient(135deg, #eaf7f0, #f5fbf7);
+      color: #18352c;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 18px;
+    }
+    .app {
+      width: min(100%, 760px);
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      box-shadow: 0 18px 50px rgba(18, 53, 43, .12);
+      overflow: hidden;
+    }
+    header {
+      background: var(--green);
+      color: white;
+      padding: 22px 24px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .logo {
+      width: 48px; height: 48px; border-radius: 15px;
+      display: grid; place-items: center; background: rgba(255,255,255,.18);
+      font-size: 26px; flex: 0 0 auto;
+    }
+    header h1 { margin: 0 0 5px; font-size: clamp(20px, 4vw, 27px); }
+    header p { margin: 0; opacity: .94; font-size: 14px; }
+    .notice {
+      padding: 12px 18px; background: #fff5e5; color: #7a3e00;
+      border-bottom: 1px solid #f1dfc4; font-size: 13px; line-height: 1.45;
+    }
+    .layout { display: grid; grid-template-columns: 1fr; }
+    .chat { padding: 20px; }
+    .messages {
+      height: 320px; overflow-y: auto; padding: 4px 3px 12px;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .message {
+      max-width: 92%; padding: 12px 14px; border-radius: 16px;
+      font-size: 14px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere;
+    }
+    .bot { align-self: flex-start; background: #f0f6f2; border: 1px solid #e0ebe4; }
+    .user { align-self: flex-end; background: var(--green); color: white; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 15px; }
+    .chip {
+      border: 1px solid #9acbb5; color: var(--dark); background: white;
+      border-radius: 999px; padding: 9px 12px; cursor: pointer; font-size: 13px;
+    }
+    .chip:hover, .chip:focus { background: var(--light); outline: 2px solid #9acbb5; }
+    form { display: flex; gap: 8px; }
+    input {
+      min-width: 0; flex: 1; padding: 13px 14px; border-radius: 12px;
+      border: 1px solid #bfd4c8; font-size: 14px;
+    }
+    input:focus { outline: 2px solid #9acbb5; border-color: var(--green); }
+    button.send {
+      border: 0; border-radius: 12px; background: var(--green); color: white;
+      font-weight: bold; padding: 0 19px; cursor: pointer;
+    }
+    button.send:hover { background: #06694b; }
+    .footer {
+      padding: 14px 20px; background: #f8fbf9; border-top: 1px solid #e2eee7;
+      font-size: 12px; color: #4c6258; line-height: 1.6;
+    }
+    .footer a { color: #086b4c; font-weight: bold; }
+    @media (max-width: 480px) {
+      body { padding: 0; align-items: stretch; }
+      .app { border-radius: 0; min-height: 100vh; }
+      .messages { height: 42vh; }
+      header { padding: 18px; }
+      .chat { padding: 14px; }
+      .message { max-width: 96%; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div class="logo" aria-hidden="true">🛡️</div>
+      <div>
+        <h1>UPI Safety Coach</h1>
+        <p>A student project to help spot suspicious payment situations</p>
+      </div>
+    </header>
+    <div class="notice"><strong>Safety first:</strong> Never type a real UPI PIN, OTP, password, card number, or bank account number here.</div>
+    <section class="layout">
+      <div class="chat">
+        <div class="messages" id="messages" role="log" aria-live="polite"></div>
+        <div class="chips" id="chips" aria-label="Common situations"></div>
+        <form id="chatForm">
+          <input id="userInput" type="text" autocomplete="off" aria-label="Describe a suspicious situation" placeholder="Describe a suspicious situation…">
+          <button class="send" type="submit">Send</button>
+        </form>
+      </div>
+    </section>
+    <div class="footer">
+      If money may have been stolen in India, contact your bank immediately and call <strong>1930</strong> as soon as possible. You can also report at
+      <a href="https://cybercrime.gov.in/" target="_blank" rel="noopener noreferrer">cybercrime.gov.in</a>.
+      This educational prototype uses keyword matching and may be wrong; verify advice with your bank or a trusted adult.
+    </div>
+  </main>
+
+  <script>
+    const scenarios = [
+      {
+        name: "Fake refund call",
+        buttons: ["Fake refund call"],
+        keywords: ["refund", "cashback", "money back"],
+        verdict: "LIKELY SCAM",
+        reason: "A caller may pretend to arrange a refund and pressure you to share secrets or approve a payment.",
+        action: "Do not share an OTP or UPI PIN and do not approve an unexpected collect request. Contact your bank using its official app or number."
+      },
+      {
+        name: "QR code to receive money",
+        buttons: ["QR code to receive money"],
+        keywords: ["qr code", "scan qr", "receive money", "get money"],
+        verdict: "HIGH RISK — CHECK FIRST",
+        reason: "Scanning a QR code and entering your UPI PIN usually authorizes a payment; it is not required just to receive money.",
+        action: "Do not enter your PIN to receive money. Check the payment request carefully and cancel anything you did not initiate."
+      },
+      {
+        name: "Accidental payment message",
+        buttons: ["Accidental payment"],
+        keywords: ["accidental payment", "sent by mistake", "wrong transfer", "return money"],
+        verdict: "POSSIBLE SCAM",
+        reason: "A stranger may claim they sent money by mistake. A message or screenshot alone is not proof.",
+        action: "Check your bank transaction history. Do not send money based only on a screenshot or message; ask your bank for guidance."
+      },
+      {
+        name: "OTP or KYC call",
+        buttons: ["OTP / KYC call"],
+        keywords: ["otp", "kyc", "account blocked", "sim blocked", "verify account"],
+        verdict: "LIKELY SCAM if they ask for secrets",
+        reason: "Fraudsters may impersonate a bank or threaten account closure to make you reveal an OTP, PIN, or password.",
+        action: "Never share an OTP, UPI PIN, or password. End the call and contact your bank through its official app, card, or website."
+      },
+      {
+        name: "Screen-sharing app request",
+        buttons: ["Screen-sharing app"],
+        keywords: ["screen share", "screen sharing", "remote access", "anydesk", "teamviewer"],
+        verdict: "HIGH RISK",
+        reason: "A stranger asking for remote access or screen sharing may see sensitive information or control your device.",
+        action: "Do not install an app or share your screen for an unknown caller. If already done, disconnect, contact your bank, and get trusted technical help."
+      },
+      {
+        name: "Fake customer care",
+        buttons: ["Fake customer care"],
+        keywords: ["customer care", "customer support", "helpline number", "support number"],
+        verdict: "CHECK CAREFULLY",
+        reason: "Fake support listings and callers may ask for PINs, OTPs, or remote access.",
+        action: "Find contact details inside the bank or app's official app or website. Never share your PIN or OTP."
+      },
+      {
+        name: "Payment collect request",
+        buttons: ["Payment request"],
+        keywords: ["collect request", "payment request", "approve request", "request money"],
+        verdict: "CHECK BEFORE APPROVING",
+        reason: "Approving a collect request can send money from your account.",
+        action: "Read the request and amount carefully. Decline requests you do not recognize; only enter your PIN when you intentionally mean to pay."
+      },
+      {
+        name: "Prize or lottery message",
+        buttons: ["Prize / lottery message"],
+        keywords: ["lottery", "prize", "won a prize", "lucky draw", "processing fee"],
+        verdict: "LIKELY SCAM",
+        reason: "Unexpected prizes that require a fee, PIN, OTP, or link click are common warning signs.",
+        action: "Do not pay a fee or share details. Verify independently through the organization's official website."
+      },
+      {
+        name: "Suspicious payment link",
+        buttons: ["Suspicious link"],
+        keywords: ["payment link", "click link", "unknown link", "short link"],
+        verdict: "SUSPICIOUS",
+        reason: "A fake link can lead to a lookalike page that steals information or tricks you into paying.",
+        action: "Do not open unexpected links or enter financial details. Open the official app yourself instead."
+      },
+      {
+        name: "Online seller asks for advance",
+        buttons: ["Seller asks for advance"],
+        keywords: ["online seller", "advance payment", "pay advance", "marketplace"],
+        verdict: "CHECK CAREFULLY",
+        reason: "A fake seller may demand advance payment and disappear, especially if they pressure you to act quickly.",
+        action: "Check the seller and platform protections. Avoid paying outside the platform and never share your PIN or OTP."
+      },
+      {
+        name: "Friend or relative asks urgently",
+        buttons: ["Urgent request from a friend"],
+        keywords: ["friend needs money", "relative", "emergency money", "new number", "pretending to be"],
+        verdict: "POSSIBLE IMPERSONATION SCAM",
+        reason: "Someone may pretend to be a known person and invent an emergency to rush a payment.",
+        action: "Verify using a known phone number or a separate call before sending money. Do not rely only on a new number or message."
+      },
+      {
+        name: "Fake electricity warning",
+        buttons: ["Electricity warning"],
+        keywords: ["electricity bill", "power cut", "electricity disconnection", "bill overdue"],
+        verdict: "POSSIBLE SCAM",
+        reason: "A threatening message may push you to call a fake number or open a payment link.",
+        action: "Check your bill in the provider's official app or website. Do not use contact details in a suspicious message."
+      },
+      {
+        name: "Fake job or task offer",
+        buttons: ["Fake job offer"],
+        keywords: ["job offer", "task job", "work from home", "registration fee", "earn money"],
+        verdict: "CHECK CAREFULLY",
+        reason: "Scammers may promise easy earnings but demand deposits or payments to unlock tasks or withdraw earnings.",
+        action: "Do not pay to get a job or release supposed earnings. Research the company independently and talk to a trusted adult."
+      },
+      {
+        name: "Someone asks for your UPI PIN",
+        buttons: ["Someone asks for PIN"],
+        keywords: ["upi pin", "tell my pin", "share pin", "pin requested", "password requested"],
+        verdict: "SCAM WARNING",
+        reason: "Your UPI PIN is secret and should never be shared with another person.",
+        action: "Do not share or type your PIN for someone else. Cancel the interaction and contact your bank if you think your account is at risk."
+      },
+      {
+        name: "Unknown debit or unauthorized transaction",
+        buttons: ["Unknown debit"],
+        keywords: ["unknown debit", "money deducted", "unauthorized transaction", "not my payment", "fraud transaction", "money stolen"],
+        verdict: "ACT QUICKLY",
+        reason: "An unrecognized debit may indicate fraud or an error and should be reported promptly.",
+        action: "Contact your bank immediately using official channels, secure affected payment access, and report cyber financial fraud at 1930 and cybercrime.gov.in."
+      }
+    ];
+
+    const messages = document.getElementById("messages");
+    const chips = document.getElementById("chips");
+    const form = document.getElementById("chatForm");
+    const input = document.getElementById("userInput");
+
+    function addMessage(text, who = "bot") {
+      const el = document.createElement("div");
+      el.className = "message " + who;
+      el.textContent = text;
+      messages.appendChild(el);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    function respond(scenario) {
+      addMessage(
+        "Situation: " + scenario.name +
+        "\nVERDICT: " + scenario.verdict +
+        "\nWhy: " + scenario.reason +
+        "\nWhat to do: " + scenario.action +
+        "\n\nFor cyber financial fraud in India, call 1930 and report at cybercrime.gov.in. Never share your real PIN or OTP."
+      );
+    }
+
+    function matchScenario(text) {
+      const lower = text.toLowerCase();
+      let best = null;
+      let bestScore = 0;
+      for (const scenario of scenarios) {
+        let score = 0;
+        for (const keyword of scenario.keywords) {
+          if (lower.includes(keyword)) score++;
+        }
+        if (score > bestScore) {
+          bestScore = score;
+          best = scenario;
+        }
+      }
+      return best;
+    }
+
+    function handleText(text) {
+      const cleaned = text.trim();
+      if (!cleaned) return;
+      addMessage(cleaned, "user");
+      const scenario = matchScenario(cleaned);
+      if (scenario) {
+        respond(scenario);
+      } else {
+        addMessage(
+          "I cannot confidently classify this situation yet.\n" +
+          "Do not send money, click unknown links, share secrets, or approve requests until you verify.\n" +
+          "Contact your bank through official channels. For cyber financial fraud in India, call 1930 or visit cybercrime.gov.in.\n" +
+          "Try describing whether it involved a QR code, refund, OTP/KYC, screen sharing, or unknown debit."
+        );
+      }
+    }
+
+    // Add one button for each scenario.
+    scenarios.forEach((scenario) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "chip";
+      button.textContent = scenario.buttons[0];
+      button.addEventListener("click", () => {
+        addMessage(scenario.buttons[0], "user");
+        respond(scenario);
+      });
+      chips.appendChild(button);
+    });
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      handleText(input.value);
+      input.value = "";
+      input.focus();
+    });
+
+    addMessage("Vanakkam! 👋 I am your UPI Safety Coach.\nChoose a common situation below or type what happened in general words.\nRemember: Never type your real PIN or OTP here.");
+  </script>
+</body>
+</html>
